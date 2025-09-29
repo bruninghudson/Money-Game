@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Money Game — Polished Prototype</title>
+<style>
+  :root{
+    --bg: #0b0f14;
+    --panel: linear-gradient(180deg,#091016,#0f1720);
+    --muted: #9aa6b2;
+    --accent: #37c77f;
+    --danger: #ff6b6b;
+    --glass: rgba(255,255,255,0.03);
+    --glass-2: rgba(255,255,255,0.02);
+    --card-shadow: 0 6px 18px rgba(2,6,10,0.6);
+    --radius: 12px;
+    --gap: 14px;
+    --max-width: 1200px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,var(--bg), #071018); color:#e6f0f2}
+  a{color:var(--accent)}
+  #app{max-width:var(--max-width);margin:18px auto;padding:18px;display:flex;flex-direction:column;gap:var(--gap)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  h1{margin:0;font-size:20px;letter-spacing:0.6px}
+  .topline{display:flex;gap:12px;align-items:center}
+  .stat{background:var(--panel);border-radius:10px;padding:10px 14px;box-shadow:var(--card-shadow);min-width:160px;text-align:left}
+  .stat .label{font-size:12px;color:var(--muted)}
+  .stat .value{font-weight:700;font-size:18px}
+  main{display:grid;grid-template-columns:1fr 420px;gap:var(--gap);margin-top:12px}
+  .panel{background:var(--panel);border-radius:var(--radius);padding:12px;box-shadow:var(--card-shadow);overflow:hidden}
+  #leftCol{display:flex;flex-direction:column;gap:var(--gap)}
+  .flex-row{display:flex;gap:12px;align-items:center}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{background:#0f2630;border:0;color:#e6f0f2;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+  button.warn{background:var(--danger)}
+  button.primary{background:linear-gradient(90deg,var(--accent), #0f9b6b);color:#02110a}
+  input, select{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px;border-radius:8px;color:inherit}
+  #graphWrap{height:260px;padding:10px;background:var(--glass-2);border-radius:10px;display:flex;flex-direction:column}
+  canvas{width:100%;height:100%;display:block;border-radius:8px;background:#071018}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .legendItem{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+  .swatch{width:12px;height:8px;border-radius:3px}
+  /* Businesses */
+  #businessList{display:flex;flex-direction:column;gap:8px}
+  .biz{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px;border-radius:8px;background:var(--glass)}
+  .biz .meta{display:flex;flex-direction:column}
+  .tag{font-size:12px;color:var(--muted);border-radius:6px;padding:4px 8px;background:rgba(255,255,255,0.02)}
+  /* Cryptos list */
+  #cryptoList{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .cryptoRow{display:flex;justify-content:space-between;padding:8px;border-radius:8px;background:var(--glass)}
+  /* right column */
+  #rightCol{display:flex;flex-direction:column;gap:var(--gap)}
+  .small{color:var(--muted);font-size:13px}
+  #log{max-height:320px;overflow:auto;padding:8px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent)}
+  .logLine{font-size:13px;padding:6px;border-bottom:1px dashed rgba(255,255,255,0.02)}
+  /* modal */
+  .modalBack{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:40}
+  .modal{background:var(--panel);padding:16px;border-radius:10px;min-width:320px;box-shadow:var(--card-shadow)}
+  .formRow{display:flex;gap:8px;margin-bottom:8px}
+  .muted{color:var(--muted)}
+  footer{margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+  @media (max-width:980px){
+    main{grid-template-columns:1fr; }
+    #rightCol{order:2}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>Money Game</h1>
+      <div class="small muted">Prototype — businesses, crypto, crime, loans</div>
+    </div>
+    <div class="topline">
+      <div class="stat"><div class="label">Cash</div><div class="value" id="cash">$0.00</div></div>
+      <div class="stat"><div class="label">Debt</div><div class="value" id="debt">$0.00</div></div>
+      <div class="stat"><div class="label">Net worth</div><div class="value" id="net">$0.00</div></div>
+    </div>
+  </header>
+
+  <main>
+    <section id="leftCol">
+      <div class="panel" id="marketPanel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Market</strong>
+          <div class="controls">
+            <button id="btnCreateCrypto" class="primary">Create Crypto</button>
+            <button id="btnCreateBiz" class="ghost">Create Business</button>
+            <button id="btnWork" class="ghost">Work (+$25)</button>
+          </div>
+        </div>
+
+        <div id="graphWrap" style="margin-top:10px">
+          <canvas id="marketGraph"></canvas>
+          <div class="legend" id="legend"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+          <input id="tradeSymbol" placeholder="Symbol (e.g. BTC)" style="width:120px">
+          <input id="tradeQty" placeholder="Qty" type="number" style="width:90px">
+          <button id="btnBuy" class="primary">Buy</button>
+          <button id="btnSell" class="ghost">Sell</button>
+        </div>
+
+        <div id="stocksSection" style="margin-top:12px">
+          <div class="small muted">Assets (hover on graph for history)</div>
+          <div id="stocksList" style="margin-top:8px"></div>
+          <div id="cryptoList"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="businessPanel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Businesses</strong>
+          <div class="small muted">Owning, producing & selling</div>
+        </div>
+        <div id="businessList" style="margin-top:10px"></div>
+      </div>
+
+      <div class="panel">
+        <strong>Actions</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          <button id="btnRob" class="warn">Attempt Robbery</button>
+          <button id="btnTakeLoan" class="ghost">Take Bank Loan</button>
+          <button id="btnLoanShark" class="ghost">Loan Shark</button>
+          <button id="btnRepay" class="ghost">Repay Debt</button>
+        </div>
+      </div>
+    </section>
+
+    <aside id="rightCol">
+      <div class="panel">
+        <strong>Game Log</strong>
+        <div id="log" style="margin-top:10px"></div>
+      </div>
+
+      <div class="panel">
+        <strong>Portfolio</strong>
+        <div id="portfolio" style="margin-top:8px"></div>
+      </div>
+
+      <div class="panel">
+        <strong>Controls</strong>
+        <div class="small muted" style="margin-top:8px">Tick every 4s. Game saved in localStorage.</div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="btnSave" class="ghost">Save</button>
+          <button id="btnReset" class="ghost">Reset</button>
+          <button id="btnForceNews" class="ghost">Force News</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>Prototype UI — tell me what else you want and I'll add it</footer>
+</div>
+
+<!-- MODALS -->
+<div class="modalBack" id="modalBack">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+/* Polished Money Game prototype
+   - Multiple cryptos
+   - Businesses (name, product, legal/illegal)
+   - Scaled canvas graph with legend
+   - Robbery with prison & seizure
+   - Loans & loan sharks
+   - Save to localStorage
+*/
+
+// ---------- State ----------
+const TICK_MS = 4000;
+const HISTORY_LENGTH = 120;
+
+const state = {
+  cash: 1200,
+  debt: 0,
+  loanInterest: 0.02, // per tick
+  loanShark: null,
+  clickValue: 25,
+  portfolio: {}, // symbol -> qty
+  assets: {}, // symbol -> {name, price, vol, type}
+  history: {}, // symbol -> array
+  businesses: {}, // id -> {name, product, illegal, buffer, prodPerTick, salePrice}
+  log: [],
+  prison: { jailed: false, ticksLeft: 0 }
+};
+
+// default assets (stocks) to seed
+function seedDefaultAssets(){
+  state.assets = {
+    AAPL: { name:"Apex Systems", price: 120 + Math.random()*40, vol: 0.02, type:"stock", color:"#2f9e44" },
+    ZYN: { name:"Zyntech", price: 60 + Math.random()*40, vol: 0.03, type:"stock", color:"#1f78b4" },
+    ROV: { name:"Rover Logistics", price: 240 + Math.random()*80, vol: 0.015, type:"stock", color:"#ff7f0e" }
+  };
+  for(const s in state.assets) state.history[s] = Array(HISTORY_LENGTH).fill(state.assets[s].price);
+}
+
+// ---------- Utils ----------
+const $ = id => document.getElementById(id);
+function fm(n){ return "$" + Number(n).toFixed(2); }
+function log(msg){
+  const ts = new Date().toLocaleTimeString();
+  state.log.unshift({ts, msg});
+  renderLog();
+}
+function save(){ localStorage.setItem("moneyGame_v3", JSON.stringify(state)); log("Game saved."); }
+function load(){
+  const raw = localStorage.getItem("moneyGame_v3");
+  if(!raw) return false;
+  try{
+    const parsed = JSON.parse(raw);
+    // merge for safety (simple)
+    Object.assign(state, parsed);
+    // ensure histories and assets colors
+    for(const s in state.assets) state.history[s] = state.history[s] || Array(HISTORY_LENGTH).fill(state.assets[s].price || 1);
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+function resetGame(){ if(confirm("Reset game?")) { localStorage.removeItem("moneyGame_v3"); location.reload(); } }
+
+// ---------- Rendering ----------
+function renderHeader(){
+  $("cash").textContent = fm(state.cash);
+  $("debt").textContent = fm(state.debt);
+  // net worth
+  let pv = 0;
+  for(const s in state.portfolio){ const qty = state.portfolio[s] || 0; const a = state.assets[s]; if(a) pv += (a.price*qty); }
+  $("net").textContent = fm(state.cash + pv - state.debt);
+}
+function renderLog(){
+  const out = $("log"); out.innerHTML = "";
+  state.log.slice(0,200).forEach(l => {
+    const d = document.createElement("div"); d.className = "logLine";
+    d.innerHTML = `<strong style="color:var(--muted)">${l.ts}</strong> &nbsp; ${l.msg}`;
+    out.appendChild(d);
+  });
+}
+function renderAssets(){
+  const stocks = $("stocksList"); stocks.innerHTML = "";
+  const cryptos = $("cryptoList"); cryptos.innerHTML = "";
+  for(const s in state.assets){
+    const a = state.assets[s];
+    const row = document.createElement("div"); row.className = a.type==="crypto" ? "cryptoRow":"assetRow";
+    row.innerHTML = `<div><strong>${s}</strong> <span class="small muted"> ${a.name}</span></div>
+                     <div style="text-align:right"><div>${fm(a.price)}</div><div class="small muted">${a.type}</div></div>`;
+    if(a.type==="stock") stocks.appendChild(row); else cryptos.appendChild(row);
+  }
+}
+function renderPortfolio(){
+  const p = $("portfolio");
+  const lines = [];
+  for(const s in state.portfolio){
+    const qty = state.portfolio[s]; if(qty<=0) continue;
+    const a = state.assets[s];
+    const val = (a? a.price:0)*qty;
+    lines.push(`<div style="display:flex;justify-content:space-between"><div><strong>${s}</strong> x ${qty}</div><div>${fm(val)}</div></div>`);
+  }
+  p.innerHTML = lines.length ? lines.join("") : `<div class="muted">You own nothing yet.</div>`;
+}
+function renderBusinesses(){
+  const list = $("businessList"); list.innerHTML = "";
+  const keys = Object.keys(state.businesses);
+  if(keys.length===0) list.innerHTML = `<div class="muted">No businesses yet</div>`;
+  else keys.forEach(k=>{
+    const b = state.businesses[k];
+    const div = document.createElement("div"); div.className = "biz";
+    div.innerHTML = `<div class="meta">
+                      <div><strong>${b.name}</strong> <span class="tag">${b.illegal? 'illegal':'legal'}</span></div>
+                      <div class="small muted">${b.product} • produces ${b.prodPerTick}/tick • buffer ${Math.floor(b.buffer)}</div>
+                     </div>
+                     <div style="display:flex;gap:8px;align-items:center">
+                       <button onclick="collectBiz('${k}')" class="primary">Sell Buffer</button>
+                       <button onclick="upgradeBiz('${k}')" class="ghost">Upgrade</button>
+                     </div>`;
+    list.appendChild(div);
+  });
+}
+function renderLegend(){
+  const legend = $("legend"); legend.innerHTML = "";
+  const syms = Object.keys(state.assets);
+  syms.forEach((s,i)=>{
+    const a = state.assets[s];
+    const it = document.createElement("div"); it.className = "legendItem";
+    it.innerHTML = `<div class="swatch" style="background:${a.color || pickColor(i)}"></div><div>${s} <span class="small muted">${a.name}</span></div>`;
+    legend.appendChild(it);
+  });
+}
+function updateAllUI(){ renderHeader(); renderAssets(); renderPortfolio(); renderBusinesses(); renderLegend(); }
+
+// ---------- Graph (canvas) ----------
+const canvas = $("marketGraph"); const ctx = canvas.getContext("2d");
+function resizeCanvas(){ canvas.width = canvas.clientWidth * devicePixelRatio; canvas.height = canvas.clientHeight * devicePixelRatio; ctx.scale(devicePixelRatio, devicePixelRatio); }
+window.addEventListener('resize', ()=>{
+  // reset transform then scale
+  ctx.setTransform(1,0,0,1,0,0);
+  resizeCanvas();
+  drawGraph();
+});
+function pickColor(i){ const palette = ["#2f9e44","#1f78b4","#ff7f0e","#d62728","#9467bd","#e377c2","#8c564b"]; return palette[i % palette.length]; }
+function drawGraph(){
+  // clear and draw grid + lines
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save(); ctx.scale(1/devicePixelRatio,1/devicePixelRatio); // because we scaled earlier
+  // background
+  ctx.fillStyle = "#071018"; ctx.fillRect(0,0,w,h);
+  // grid
+  ctx.strokeStyle = "rgba(255,255,255,0.03)"; ctx.lineWidth = 1;
+  for(let y=0;y<=4;y++){ ctx.beginPath(); ctx.moveTo(0, (y/4)*h); ctx.lineTo(w,(y/4)*h); ctx.stroke(); }
+  // collect visible histories
+  const syms = Object.keys(state.assets);
+  syms.forEach((s, idx) => {
+    const hist = state.history[s] || [];
+    if(hist.length < 2) return;
+    // find min/max
+    const min = Math.min(...hist); const max = Math.max(...hist);
+    const pad = (max - min) * 0.08 || (max*0.08) || 1;
+    const low = min - pad; const high = max + pad;
+    ctx.beginPath();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = state.assets[s].color || pickColor(idx);
+    hist.forEach((v,i) => {
+      const x = (i/(HISTORY_LENGTH-1))*w;
+      const y = h - ((v - low)/(high - low))*h;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    // draw label
+    ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(8,8 + idx*14, 10, 6);
+    ctx.fillStyle = "#cfece0"; ctx.font = "11px Inter, Arial"; ctx.fillText(`${s} ${fm(state.assets[s].price)}`, 26, 16 + idx*14);
+  });
+  ctx.restore();
+}
+
+// ---------- Market tick & mechanics ----------
+const NEWS_POOL = [
+  { text:"Apex Systems posts great results", fn: s => s==="AAPL" ? 0.06 : 0 },
+  { text:"Crypto exchange hacks", fn: s => s==="BTC"? -0.18 : s==="ETH"? -0.12 : 0 },
+  { text:"Doge meme spike", fn: s => s==="DOGE"? 0.4:0 },
+  { text:"Rover landing new routes", fn: s => s==="ROV"? 0.08:0 },
+  { text:"Zyntech delay", fn: s => s==="ZYN"? -0.15:0 }
+];
+
+function marketTick(){
+  // maybe spawn news
+  if(Math.random() < 0.35) {
+    const n = NEWS_POOL[Math.floor(Math.random()*NEWS_POOL.length)];
+    log("News: " + n.text);
+    // apply immediate effect to assets by pushing higher pct to next tick (we'll incorporate randomly)
+    state.recentNews = n;
+  } else {
+    state.recentNews = null;
+  }
+
+  for(const s in state.assets){
+    const a = state.assets[s];
+    // base change
+    let pct = (Math.random() - 0.5) * 2 * a.vol;
+    // news influence
+    if(state.recentNews) pct += state.recentNews.fn(s) * (0.7 + Math.random()*0.6);
+    // occasional jump
+    if(Math.random() < 0.03) pct += (Math.random()-0.5) * 0.25;
+    a.price = Math.max(0.0001, a.price * (1 + pct));
+    // push to history
+    if(!state.history[s]) state.history[s] = [];
+    state.history[s].push(a.price);
+    while(state.history[s].length > HISTORY_LENGTH) state.history[s].shift();
+  }
+
+  // businesses produce
+  for(const k in state.businesses){
+    const b = state.businesses[k];
+    b.buffer += b.prodPerTick;
+    if(b.buffer >= 1){
+      // buffer stays until sold
+    }
+  }
+
+  // interest on debt
+  if(state.debt > 0){
+    const interest = state.debt * state.loanInterest;
+    state.debt += interest;
+    log(`Bank interest applied: ${fm(interest)}`);
+  }
+
+  // loan shark interest & enforcement
+  if(state.loanShark){
+    const ls = state.loanShark;
+    ls.amount += ls.amount * ls.interest;
+    if(Math.random() < 0.07){
+      // seize something
+      if(state.cash > 0){
+        const take = Math.min(state.cash, ls.amount*0.2);
+        state.cash -= take; ls.amount -= take; log(`Loan shark seized ${fm(take)} cash.`);
+      } else if(Object.keys(state.portfolio).length){
+        const owned = Object.keys(state.portfolio);
+        const pick = owned[Math.floor(Math.random()*owned.length)];
+        const qty = Math.max(1, Math.floor(state.portfolio[pick]/2));
+        state.portfolio[pick] -= qty; if(state.portfolio[pick] <=0) delete state.portfolio[pick];
+        log(`Loan shark seized ${qty} ${pick} from your portfolio.`);
+      } else if(Object.keys(state.businesses).length){
+        const bkeys = Object.keys(state.businesses);
+        const pickb = bkeys[Math.floor(Math.random()*bkeys.length)];
+        delete state.businesses[pickb];
+        log(`Loan shark took your business ${pickb}.`);
+      } else {
+        log("Loan shark tried to seize something but you had nothing.");
+      }
+    }
+  }
+
+  // prison ticks
+  if(state.prison.jailed){
+    state.prison.ticksLeft -= 1;
+    log(`Prison: ${state.prison.ticksLeft} ticks remaining`);
+    if(state.prison.ticksLeft <= 0){ state.prison.jailed = false; state.prison.ticksLeft = 0; log("You were released from prison."); }
+  }
+
+  updateAllUI();
+  drawGraph();
+  saveStateScheduled();
+}
+
+// ---------- Trading ----------
+function buy(symbol, qty){
+  symbol = symbol.toUpperCase();
+  if(!state.assets[symbol]) return log("Unknown asset");
+  qty = Math.floor(qty);
+  if(qty <= 0) return log("Invalid qty");
+  const cost = state.assets[symbol].price * qty;
+  if(cost > state.cash) return log("Not enough cash");
+  state.cash -= cost;
+  state.portfolio[symbol] = (state.portfolio[symbol] || 0) + qty;
+  log(`Bought ${qty} ${symbol} for ${fm(cost)}`);
+  updateAllUI(); save();
+}
+function sell(symbol, qty){
+  symbol = symbol.toUpperCase();
+  const owned = state.portfolio[symbol] || 0;
+  qty = Math.floor(qty);
+  if(qty <= 0 || qty > owned) return log("Invalid sell qty");
+  const revenue = (state.assets[symbol].price || 0) * qty;
+  state.cash += revenue;
+  state.portfolio[symbol] -= qty; if(state.portfolio[symbol] <= 0) delete state.portfolio[symbol];
+  log(`Sold ${qty} ${symbol} for ${fm(revenue)}`);
+  updateAllUI(); save();
+}
+
+// ---------- Businesses ----------
+function openCreateBizModal(){
+  showModal(`<h3>Create Business</h3>
+    <div class="formRow"><input id="mBizName" placeholder="Business name" /></div>
+    <div class="formRow"><input id="mBizProduct" placeholder="Product / Service" /></div>
+    <div class="formRow"><label><input id="mBizIllegal" type="checkbox"> Illegal (higher profit & risk)</label></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="closeModal()">Cancel</button><button class="primary" onclick="confirmCreateBiz()">Create ($500)</button></div>
+  `);
+}
+function confirmCreateBiz(){
+  const name = $("mBizName").value.trim() || ("Biz" + (Math.floor(Math.random()*9000)+1000));
+  const product = $("mBizProduct").value.trim() || "Goods";
+  const illegal = $("mBizIllegal").checked;
+  if(state.cash < 500) { log("Not enough to create business"); closeModal(); return; }
+  state.cash -= 500;
+  const id = "biz_" + Math.floor(Math.random()*99999);
+  const baseProd = illegal ? 5 + Math.random()*8 : 3 + Math.random()*3;
+  const sale = illegal ? 10 + Math.random()*30 : 2 + Math.random()*6;
+  state.businesses[id] = { name, product, illegal, buffer:0, prodPerTick: Math.round(baseProd), salePrice: Math.round(sale) };
+  log(`Created business "${name}" (${illegal? "illegal":"legal"})`);
+  closeModal();
+  updateAllUI(); save();
+}
+function collectBiz(id){
+  const b = state.businesses[id]; if(!b) return;
+  const qty = Math.floor(b.buffer);
+  if(qty === 0) return log("No buffer to sell");
+  const revenue = qty * b.salePrice;
+  b.buffer -= qty;
+  state.cash += revenue;
+  log(`Sold ${qty} ${b.product} from ${b.name} for ${fm(revenue)}`);
+  updateAllUI(); save();
+}
+function upgradeBiz(id){
+  const b = state.businesses[id];
+  if(!b) return;
+  const cost = 500 + Math.floor(b.prodPerTick * 80);
+  if(state.cash < cost) return log("Not enough cash to upgrade");
+  state.cash -= cost; b.prodPerTick += Math.ceil(b.prodPerTick * 0.5); b.salePrice = Math.round(b.salePrice * 1.15);
+  log(`Upgraded ${b.name}. Prod now ${b.prodPerTick}/tick`);
+  updateAllUI(); save();
+}
+
+// ---------- Crypto creation ----------
+function openCreateCryptoModal(){
+  showModal(`<h3>Create Cryptocurrency</h3>
+    <div class="formRow"><input id="mCoinName" placeholder="Coin symbol (e.g. MYCOIN)" maxlength="8" /></div>
+    <div class="formRow"><input id="mCoinFull" placeholder="Full name (optional)" /></div>
+    <div class="formRow"><label>Type:
+      <select id="mCoinType"><option value="real">Real</option><option value="scam">Scam</option></select>
+    </label></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="closeModal()">Cancel</button><button class="primary" onclick="confirmCreateCrypto()">Create ($200)</button></div>
+  `);
+}
+function confirmCreateCrypto(){
+  const sym = ($("mCoinName").value.trim() || ("C"+Math.floor(Math.random()*9000))).toUpperCase();
+  const full = $("mCoinFull").value.trim() || sym + " Coin";
+  const type = $("mCoinType").value;
+  if(state.cash < 200){ log("Not enough cash to create coin"); closeModal(); return; }
+  if(state.assets[sym]){ log("Symbol already exists"); closeModal(); return; }
+  state.cash -= 200;
+  const price = Math.max(0.5, (Math.random()*3) + 0.5);
+  state.assets[sym] = { name: full, price, vol: type==="scam" ? 0.18 : 0.06, type:"crypto", color: pickColor(Object.keys(state.assets).length) };
+  state.history[sym] = Array(HISTORY_LENGTH).fill(price);
+  log(`Created ${type} coin ${sym} at ${fm(price)}`);
+  closeModal(); updateAllUI(); drawGraph(); save();
+}
+
+// ---------- Loans & robbery ----------
+function takeBankLoan(){
+  const amt = Number(prompt("Bank Loan amount (recommended small):", "500"));
+  if(!amt || amt <=0) return;
+  state.cash += amt; state.debt += amt; log(`Took bank loan ${fm(amt)}`);
+  updateAllUI(); save();
+}
+function takeLoanShark(){
+  const amt = Number(prompt("Loan Shark amount (very risky):", "500"));
+  if(!amt || amt <=0) return;
+  const interest = 0.18 + Math.random()*0.45;
+  state.cash += amt; state.loanShark = { amount: amt, interest }; log(`Loan shark loan ${fm(amt)} @ ${(interest*100).toFixed(1)}%/tick`);
+  updateAllUI(); save();
+}
+function repayDebt(){
+  const repay = Number(prompt("Repay amount:", String(Math.min(state.cash, state.debt || 0))));
+  if(!repay || repay <=0) return;
+  if(repay > state.cash) return log("Not enough cash to repay");
+  state.cash -= repay; state.debt = Math.max(0, state.debt - repay);
+  log(`Repaid ${fm(repay)} of debt`);
+  updateAllUI(); save();
+}
+function attemptRobbery(){
+  if(state.prison.jailed) return log("You're in prison, can't commit crimes.");
+  const level = prompt("Risk level: low / medium / high", "medium");
+  if(!level) return;
+  const cfg = level.toLowerCase()==="low" ? {s:0.75,range:[30,120],caught:0.06} : level.toLowerCase()==="high"? {s:0.2,range:[700,1800],caught:0.45} : {s:0.5,range:[120,420],caught:0.18};
+  const success = Math.random() < cfg.s;
+  if(success){
+    const gain = Math.round(rand(cfg.range[0], cfg.range[1]));
+    state.cash += gain; log(`Robbery success (${level}). Gained ${fm(gain)}.`);
+    // small chase loss
+    if(Math.random() < 0.12){ const chase = Math.round(gain*0.2); state.cash = Math.max(0, state.cash - chase); log(`Chased: lost ${fm(chase)}`); }
+  } else {
+    const loss = Math.round(rand(cfg.range[0]/2, cfg.range[1]/2));
+    state.cash = Math.max(0, state.cash - loss); log(`Robbery failed (${level}). Lost ${fm(loss)}.`);
+    if(Math.random() < cfg.caught){
+      // seized: cash + portfolio fraction + maybe business
+      const seizeCash = Math.min(state.cash, Math.round(loss * (1 + Math.random())));
+      state.cash = Math.max(0, state.cash - seizeCash);
+      log(`Caught by police — seized ${fm(seizeCash)} cash.`);
+      const own = Object.keys(state.portfolio);
+      if(own.length){
+        const pick = own[Math.floor(Math.random()*own.length)];
+        const q = Math.max(1, Math.floor(state.portfolio[pick] * (0.25 + Math.random()*0.6)));
+        state.portfolio[pick] -= q; if(state.portfolio[pick] <=0) delete state.portfolio[pick];
+        log(`Police seized ${q} of ${pick} from your holdings.`);
+      } else if(Object.keys(state.businesses).length){
+        const bkeys = Object.keys(state.businesses);
+        const pickb = bkeys[Math.floor(Math.random()*bkeys.length)];
+        delete state.businesses[pickb];
+        log(`Police seized your business ${pickb}.`);
+      }
+      // jail time
+      state.prison.jailed = true; state.prison.ticksLeft = Math.ceil(2 + Math.random()*4);
+      log(`Sent to prison for ${state.prison.ticksLeft} ticks.`);
+    }
+  }
+  updateAllUI(); save();
+}
+
+// ---------- Modal helpers ----------
+function showModal(html){
+  $("modalContent").innerHTML = html;
+  $("modalBack").style.display = "flex";
+}
+function closeModal(){ $("modalBack").style.display = "none"; $("modalContent").innerHTML = ""; }
+
+// ---------- helpers ----------
+function rand(a,b){ return Math.floor(a + Math.random()*(b-a+1)); }
+let saveTimer = null;
+function saveStateScheduled(){ if(saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(()=>{ localStorage.setItem("moneyGame_v3", JSON.stringify(state)); log("Auto-saved"); }, 600); }
+
+// ---------- Bind UI ----------
+document.addEventListener("DOMContentLoaded", ()=>{
+  const loaded = load();
+  if(!loaded){ seedDefaultAssets(); log("New game started"); }
+  resizeCanvas(); updateAllUI(); drawGraph();
+
+  // tick loop
+  setInterval(marketTick, TICK_MS);
+
+  // events
+  $("btnCreateCrypto").onclick = openCreateCryptoModal;
+  $("btnCreateBiz").onclick = openCreateBizModal;
+  $("btnWork").onclick = ()=>{ state.cash += state.clickValue; log(`Worked: +${fm(state.clickValue)}`); updateAllUI(); save(); };
+  $("btnBuy").onclick = ()=>{ buy($("tradeSymbol").value.trim(), Number($("tradeQty").value || 0)); };
+  $("btnSell").onclick = ()=>{ sell($("tradeSymbol").value.trim(), Number($("tradeQty").value || 0)); };
+  $("btnRob").onclick = attemptRobbery;
+  $("btnTakeLoan").onclick = takeBankLoan;
+  $("btnLoanShark").onclick = takeLoanShark;
+  $("btnRepay").onclick = repayDebt;
+  $("btnSave").onclick = ()=>{ localStorage.setItem("moneyGame_v3", JSON.stringify(state)); log("Saved manually"); };
+  $("btnReset").onclick = resetGame;
+  $("btnForceNews").onclick = ()=>{ state.recentNews = NEWS_POOL[Math.floor(Math.random()*NEWS_POOL.length)]; log("Forced news: " + state.recentNews.text); };
+  $("modalBack").onclick = (e)=>{ if(e.target.id==="modalBack") closeModal(); };
+});
+
+// ---------- Startup helpers ----------
+function save(){ localStorage.setItem("moneyGame_v3", JSON.stringify(state)); log("Saved"); }
+function saveStateScheduled(){ localStorage.setItem("moneyGame_v3", JSON.stringify(state)); }
+
+// initial canvas sizing
+function resizeCanvas(){
+  // reset transforms then size (account for DPR)
+  const dpr = devicePixelRatio || 1;
+  canvas.width = canvas.clientWidth * dpr;
+  canvas.height = canvas.clientHeight * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+resizeCanvas();
+drawGraph();
+updateAllUI();
+
+// autosave on unload
+window.addEventListener("beforeunload", ()=>{ localStorage.setItem("moneyGame_v3", JSON.stringify(state)); });
+
+</script>
+</body>
+</html>
